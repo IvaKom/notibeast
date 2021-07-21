@@ -1,0 +1,1 @@
+using gcc : arm : arm-linux-gnueabihf-g++-9 : -float-abi=hard -mhard-float -mfpu=vfpv3 -mcpu=marvell-pj4 -mtune=marvell-pj4 ;

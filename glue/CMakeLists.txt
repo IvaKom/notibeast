@@ -1,0 +1,6 @@
+list(APPEND GLUE_SRC
+   options.cpp
+)
+get_filename_component(DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+list(TRANSFORM GLUE_SRC PREPEND ${DIR_NAME}/)
+set(GLUE_SRC ${GLUE_SRC} PARENT_SCOPE)

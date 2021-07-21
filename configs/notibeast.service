@@ -1,0 +1,13 @@
+[Unit]
+Description="NotiBeast - send file system notifications to a remote system"
+After=network.target
+
+[Service]
+ExecStart=<PATH_TO_BIN> -a 0.0.0.0 -p 8080 -m /tmp  -x '@eaDir' -x '#recycle'
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=notibeast
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

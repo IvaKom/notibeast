@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      .row {
+        align-items:flex-start;
+        display:flex;
+      }
+      /*Credits for a dropdown list of checkboxes go to https://stackoverflow.com/questions/19206919/how-to-create-checkbox-inside-dropdown#comment45294912_19207528*/
+      .dropdown-check-list {
+	display: inline-block;
+      }
+      .dropdown-check-list .anchor {
+	position: relative;
+	cursor: pointer;
+	display: inline-block;
+	padding: 1px 50px 1px 10px;
+	border: 1px solid #ccc;
+      }
+      .dropdown-check-list .anchor:after {
+	position: absolute;
+	content: "";
+	border-left: 2px solid black;
+	border-top: 2px solid black;
+	padding: 3px;
+	right: 10px;
+	top: 20%;
+	-moz-transform: rotate(-135deg);
+	-ms-transform: rotate(-135deg);
+	-o-transform: rotate(-135deg);
+	-webkit-transform: rotate(-135deg);
+	transform: rotate(-135deg);
+      }
+      .dropdown-check-list .anchor:active:after {
+	right: 8px;
+	top: 21%;
+      }
+      .dropdown-check-list ul.items {
+	padding: 2px;
+	display: none;
+	margin: 0;
+	border: 1px solid #ccc;
+	border-top: none;
+      }
+      .dropdown-check-list ul.items li {
+	list-style: none;
+      }
+    </style>
+    <title>Notibeast client - monitor remote filesystem</title>
+    <!-- <link rel="stylesheet" href="style.css"> -->
+    <script language = "javascript" type = "text/javascript">
+      <!--
+      const events = {
+        IN_ACCESS:        0x00000001,
+        IN_MODIFY:        0x00000002,
+        IN_ATTRIB:        0x00000004,
+        IN_CLOSE_WRITE:   0x00000008,
+        IN_CLOSE_NOWRITE: 0x00000010,
+        IN_OPEN:          0x00000020,
+        IN_MOVED_FROM:    0x00000040,
+        IN_MOVED_TO:      0x00000080,
+        IN_CREATE:        0x00000100,
+        IN_DELETE:        0x00000200,
+        IN_DELETE_SELF:   0x00000400,
+        IN_MOVE_SELF:     0x00000800,
+        IN_UNMOUNT:       0x00002000,
+        IN_Q_OVERFLOW:    0x00004000,
+        IN_IGNORED:       0x00008000,
+        IN_ISDIR:         0x40000000
+      };
+
+      var ml;
+      var socket;
+      var btn;
+      function addToList(text) {
+        var entry = document.createElement('div');
+        entry.appendChild(document.createTextNode(text));
+        ml.appendChild(entry);
+        ml.scrollTop = ml.scrollHeight;
+      }
+
+      function strMask(mask) {
+        var res = "";
+        if (mask & events["IN_ACCESS"]) {
+          res = "IN_ACCESS";                  mask &= ~events["IN_ACCESS"];
+        } else if (mask & events["IN_ATTRIB"]) {
+          res = "IN_ATTRIB";                  mask &= ~events["IN_ATTRIB"];
+        } else if (mask & events["IN_CLOSE_WRITE"]) {
+          res = "IN_CLOSE_WRITE";             mask &= ~events["IN_CLOSE_WRITE"];
+        } else if (mask & events["IN_CLOSE_NOWRITE"]) {
+          res = "IN_CLOSE_NOWRITE";           mask &= ~events["IN_CLOSE_NOWRITE"];
+        } else if (mask & events["IN_DELETE"]) {
+          res = "IN_DELETE";                  mask &= ~events["IN_DELETE"];
+        } else if (mask & events["IN_CREATE"]) {
+          res = "IN_CREATE";                  mask &= ~events["IN_CREATE"];
+        } else if (mask & events["IN_DELETE_SELF"]) {
+          res = "IN_DELETE_SELF";             mask &= ~events["IN_DELETE_SELF"];
+        } else if (mask & events["IN_MODIFY"]) {
+          res = "IN_MODFIY";                  mask &= ~events["IN_MODIFY"];
+        } else if (mask & events["IN_MOVE_SELF"]) {
+          res = "IN_MOVE_SELF";               mask &= ~events["IN_MOVE_SELF"];
+        } else if (mask & events["IN_MOVED_FROM"]) {
+          res = "IN_MOVED_FROM";              mask &= ~events["IN_MOVED_FROM"];
+        } else if (mask & events["IN_MOVED_TO"]) {
+          res = "IN_MOVED_TO";                mask &= ~events["IN_MOVED_TO"];
+        } else if (mask & events["IN_OPEN"]) {
+          res = "IN_OPEN";                    mask &= ~events["IN_OPEN"];
+        } else if (mask & events["IN_UNMOUNT"]) {
+          res = "IN_UNMOUNT";                 mask &= ~events["IN_UNMOUNT"];
+        } else if (mask & events["IN_Q_OVERFLOW"]) {
+          res = "IN_Q_OVERFLOW";              mask &= ~events["IN_Q_OVERFLOW"];
+        } else if (mask & events["IN_IGNORED"]) {
+          res = "IN_IGNORED";                 mask &= ~events["IN_IGNORED"];
+        } else if (mask & events["IN_ISDIR"]) {
+          res = "IN_ISDIR";                   mask &= ~events["IN_ISDIR"];
+        }
+
+        if (mask != 0 && res == "") {
+          return `Undetected mask: 0x${mask.toString(16)}`;
+        }
+        return mask != 0 ? res + "|" + strMask(mask) : res;
+      } //strMask
+
+      function toReadableJson(eventObj) {
+        var ret = `{"path": "${eventObj.path}"`;
+        ret += `, "name": "${eventObj.name}"`;
+        ret += `, "mask": "${strMask(eventObj.mask)}"`;
+        ret += `, "cookie": ${eventObj.cookie}}`;
+        return ret;
+      }
+
+      function sendSubscribeMessage(socket, mask) {
+        let command = {
+          command: "subscribe",
+          mask: mask
+        }
+        console.log(`sending ${JSON.stringify(command)}`);
+        socket.send(JSON.stringify(command));
+      }
+
+      function connect(address, mask) {
+        if (socket) {
+          console.info("socket is open. Closing the old one and open a new one");
+          socket.close();
+        }
+        socket = new WebSocket(`ws://${address}`);
+
+        socket.onopen = function(e) {
+          console.info(`[open] connection established`);
+
+          sendSubscribeMessage(socket, mask);
+
+          var rm = document.getElementById("receivedMessages");
+          rm.style.display = "block";
+        }
+
+        socket.onmessage = function(event) {
+          console.debug(`[message] Data received from server: ${event.data}`);
+          let eventObj = JSON.parse(event.data);
+          //console.debug(`[message] customized event ${toReadableJson(eventObj)}`);
+          addToList(toReadableJson(eventObj));
+        }
+
+        socket.onclose = function(event) {
+          if (event.wasClean) {
+            console.log(`[close] Connection closed cleanly, code=${event.code} reason="${event.reason}"`);
+          } else {
+            // e.g. server process killed or network down
+            // event.code and event.reason don't seem to be available
+            console.warn('[close] Connection died.');
+          }
+        }
+
+        socket.onerror = function(error) {
+          console.error(`[error] ${error.message}`);
+        }
+      }
+
+      function setDropdownList() {
+        var checkList = document.getElementById('list1');
+        var items = document.getElementById('items');
+        checkList.getElementsByClassName('anchor')[0].onclick = function (evt) {
+            if (items.classList.contains('visible')){
+                items.classList.remove('visible');
+                items.style.display = "none";
+            }
+            else{
+                items.classList.add('visible');
+                items.style.display = "block";
+            }
+        }
+
+        items.onblur = function(evt) {
+            items.classList.remove('visible');
+        }
+      }
+
+      function subscribe() {
+        if (items.classList.contains('visible')) {
+            items.classList.remove('visible');
+            items.style.display = "none";
+        }
+        const checkboxes = document.getElementById("list1").querySelectorAll(`input:checked`);
+        let values = [];
+        var mask = 0;
+        checkboxes.forEach((checkbox) => {
+          values.push(checkbox.value);
+          mask |= events[checkbox.value];
+        });
+        console.log(`${JSON.stringify(values)}, mask: ${mask}`);
+        connect(document.getElementById("address").value, mask);
+      }
+
+      function onChange(event) {
+        let rx = /^[a-zA-Z0-9\-_\.]+:[a-zA-Z0-9\-_]+$/;
+        let reasonableAddress = rx.test(event.target.value);
+        console.debug(`is value: '${event.target.value}' reasonable address? ${reasonableAddress}`);
+        if (reasonableAddress) {
+          btn.disabled = false;
+        } else {
+          btn.disabled = true;
+        }
+      }
+
+      function main() {
+        btn = document.querySelector('#subscribe');
+        btn.disabled = true;
+        ml = document.getElementById("message-list");
+
+        setDropdownList();
+
+        btn.addEventListener('click', subscribe);
+
+        const addr = document.querySelector('#address');
+        addr.addEventListener('keypress', (event) => {
+          onChange(event)
+          if (!btn.disabled && event.keyCode == 13) {
+            subscribe();
+          }
+        });
+        addr.addEventListener('change', onChange);
+        addr.addEventListener('paste', onChange);
+        addr.addEventListener('input', onChange);
+
+      }//main
+      //-->
+    </script>
+  </head>
+  <body onload = "main()">
+    <h1>Subscribe to remote events</h1>
+    <div class="row">
+      <input placeholder="host:port" id="address"/>
+      <div id="list1" class="dropdown-check-list" tabindex="100">
+        <span class="anchor">select events to subscribe to</span>
+        <ul id="items" class="items">
+          <li><input type="checkbox" value="IN_ACCESS"        checked />IN_ACCESS</li>
+          <li><input type="checkbox" value="IN_MODIFY"        checked />IN_MODIFY</li>
+          <li><input type="checkbox" value="IN_ATTRIB"        checked />IN_ATTRIB</li>
+          <li><input type="checkbox" value="IN_CLOSE_WRITE"   checked />IN_CLOSE_WRITE</li>
+          <li><input type="checkbox" value="IN_CLOSE_NOWRITE" checked />IN_CLOSE_NOWRITE</li>
+          <li><input type="checkbox" value="IN_OPEN"          checked />IN_OPEN</li>
+          <li><input type="checkbox" value="IN_MOVED_FROM"    checked />IN_MOVED_FROM</li>
+          <li><input type="checkbox" value="IN_MOVED_TO"      checked />IN_MOVED_TO</li>
+          <li><input type="checkbox" value="IN_CREATE"        checked />IN_CREATE</li>
+          <li><input type="checkbox" value="IN_DELETE"        checked />IN_DELETE</li>
+          <li><input type="checkbox" value="IN_DELETE_SELF"   checked />IN_DELETE_SELF</li>
+          <li><input type="checkbox" value="IN_MOVE_SELF"     checked />IN_MOVE_SELF</li>
+          <li><input type="checkbox" value="IN_IGNORED"       checked />IN_IGNORED</li>
+          <li><input type="checkbox" value="IN_UNMOUNT"       checked />IN_UNMOUNT</li>
+          <li><input type="checkbox" value="IN_Q_OVERFLOW"    checked />IN_Q_OVERFLOW</li>
+        </ul>
+      </div>
+      <button id="subscribe">subscribe</button>
+    </div>
+    <h1 style="display:none" id="receivedMessages">Received messages</h1>
+    <div id = "message-list" style = "height:20em; line-height:1em; overflow:auto">
+    </div>
+  </body>
+</html>
